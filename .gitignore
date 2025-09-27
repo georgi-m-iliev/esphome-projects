@@ -1,0 +1,17 @@
+# PlatformIO
+.pio
+.pioenvs
+.piosysenvs
+.piohome
+.pio
+.pioenvs
+.piosysenvs
+.piohome
+
+# ESPHome
+.esphome
+
+venv
+.venv
+
+secrets.yaml
