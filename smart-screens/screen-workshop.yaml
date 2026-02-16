@@ -1,0 +1,309 @@
+# Substitution variables used through the codebase
+substitutions:
+  libary_folder: "."
+  
+  lightbulb:         "\U000F0335"
+  ceiling_light:     "\U000F0769"
+  lamp:              "\U000F06B5"
+  floor_lamp:        "\U000F08DD"
+  string_lights:     "\U000F12BA"
+  track_light:       "\U000F0914"
+  bulkhead_light:    "\U000F1A2F"
+  led_strip:         "\U000F07D6"
+  coach_lamp:        "\U000F1020"
+  ceiling_fan_light: "\U000F1798"
+  bed:               "\U000F02E3"
+  sunny:             "\U000F05A8"
+  gate:              "\U000F0299"
+  gate_opened:       "\U000F116A"
+  pump:              "\U000F058F"
+  pump_on:           "\U000F058F"
+  valve:             "\U000F184D"
+  floodlight:        "\U000F1987"
+
+  icon_font: light40
+  text_font: roboto24_cyrillic
+  text_color: white
+  bg_color: black
+  button_on_color: "ep_orange"
+  button_off_color: "very_dark_gray"
+  icon_on_color: "yellow"
+  icon_off_color: "white"
+  label_on_color: "white"
+  label_off_color: "white"
+  button_text_color: "white"
+  button_height_single: '109px'
+  button_height_double: '228px'
+  button_width: '150px'
+  touchscreen_idle_timeout: "30s"
+  touchscreen_daytime_brightness: "100%"
+  touchscreen_nighttime_brightness: "70%"
+  # Boot screen configuration
+  boot_screen_delay: 10s
+
+  # LCD backlight modes - Code in backlight.yaml
+  # Day mode is set to Sunrise
+  # Evening mode is set to sunset
+  # Set Night mode to Mightnight here
+  screen_night_hour: '0'
+  screen_night_minute: '0'
+
+  # Screen Size
+  screen_height: '480px'
+  screen_width: '480px'
+
+esphome:
+  name: "Display Workshop"
+  friendly_name: "DisplayWorkshop"
+  comment: "Guition ESP32-4848S040 480px * 480px Smart Screen"
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+logger:
+#  level: info
+#  logs:
+#    i2c.idf: info
+#    touchscreen: info
+#    scheduler: none
+
+# Time update script - This is run once per second. Use it to update any time related labels.
+script:
+  - id: time_update
+    then:
+      - lambda: |-
+          // No operation
+
+
+
+packages:
+  # If you need Wi-Fi include this
+  wifi: !include modules/base/wifi.yaml
+  # If your touch screen has a backlight include this
+  backlight: !include modules/base/backlignt.yaml
+  # All the colors
+  colors: !include modules/base/color.yaml
+  # Fonts you need
+  fonts: !include modules/base/fonts.yaml
+  # Some basic sensors
+  sensors: !include modules/sensors/sensors_base.yaml
+  # Styles + Themes
+  theme_style: !include modules/base/theme_style.yaml
+  # Switch to this one for debugging
+  # theme_style: !include modules/base/theme_style_debug.yaml
+
+  # Harware description file - for your board
+  hardware: !include modules/hardware/guition-esp32-s3-4848s040.yaml
+
+  # Basic boot screen with ESPHome logo and device diagnostic info
+  # boot_screen: !include modules/screens/boot_screen_480x480.yaml
+
+  # Extra code for pages
+
+  # This section will Update button and relay state from Home Assistant
+  # Any button that has real time updates needs a section here
+
+  # Pump button state updates
+  pump_button_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: pump_button
+      entity_id: "switch.valve_controller_relay1"
+  # Valve buttons state updates
+  valve_1_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: valve_1
+      entity_id: "switch.valve_controller_relay2"
+  valve_2_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: valve_2
+      entity_id: "switch.valve_controller_relay3"
+  valve_3_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: valve_3
+      entity_id: "switch.valve_controller_relay4"
+  valve_4_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: valve_4
+      entity_id: "switch.valve_controller_relay5"
+  # Gate button state updates
+  gate_button_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: gate_button
+      entity_id: "switch.gate_control"
+  floodlight_1_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: floodlight_1
+      entity_id: "switch.floodlight_house"
+  floodlight_2_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: floodlight_2
+      entity_id: "switch.floodlight_workshop"
+  floodlight_3_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: floodlight_3
+      entity_id: "switch.floodlight_gate"
+  floodlight_4_state: !include
+    file: modules/sensors/switch_or_light_button_state.yaml
+    vars:
+      uid: floodlight_4
+      entity_id: "switch.floodlight_4"
+
+# -------------------------------------------------------------------------
+# LVGL pages and buttons
+# -------------------------------------------------------------------------
+lvgl:
+# Main Page
+  pages:
+    - id: main_page
+      layout:
+        type: flex
+        flex_flow: COLUMN_WRAP
+      width: 100%
+      pad_all: 5
+      styles: page_style
+      <<: !include
+        file: modules/sections/swipe_navigation.yaml
+      widgets:
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: pump_button
+              height: $button_height_double
+              text: Помпа
+              icon: $pump
+              entity_id: "switch.valve_controller_relay1"
+
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: floodlight_1
+              height: $button_height_single
+              text: Къща
+              icon: $floodlight
+              entity_id: "switch.floodlight_house"
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: floodlight_2
+              height: $button_height_single
+              text: Работилница
+              icon: $floodlight
+              entity_id: "switch.floodlight_workshop"
+
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: valve_1
+              height: $button_height_single
+              text: Канал 1
+              icon: $valve
+              entity_id: "switch.valve_controller_relay2"
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: valve_3
+              height: $button_height_single
+              text: Канал 3
+              icon: $valve
+              entity_id: "switch.valve_controller_relay4"
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: floodlight_3
+              height: $button_height_single
+              text: Порта
+              icon: $floodlight
+              entity_id: "switch.floodlight_gate"
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: floodlight_4
+              height: $button_height_single
+              text: Прожектор
+              icon: $floodlight
+              entity_id: "switch.floodlight_4"
+
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: valve_2
+              height: $button_height_single
+              text: Канал 2
+              icon: $valve
+              entity_id: "switch.valve_controller_relay3"
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: valve_4
+              height: $button_height_single
+              text: Канал 4
+              icon: $valve
+              entity_id: "switch.valve_controller_relay5"
+
+        - button: !include
+            file: modules/buttons/switch_button.yaml
+            vars:
+              uid: gate_button
+              height: $button_height_double
+              text: Порта
+              icon: $gate
+              entity_id: "switch.gate_control"
+
+#-------------------------------------------
+# Graphics and Fonts
+#-------------------------------------------
+image:
+  - file: modules/assets/clock.svg
+    id: clock_icon_60
+    resize: 60x60
+    type: RGB565
+    transparency: alpha_channel
+
+font:
+  # Cyrillic-enabled font for button text
+  - file: "modules/assets/Roboto-Regular.ttf"
+    id: roboto24_cyrillic
+    size: 24
+    bpp: 8
+    glyphs: '!"%()+,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
+
+  - file: "modules/assets/Roboto-Regular.ttf"
+    id: ep32
+    size: 32
+    bpp: 8
+    glyphs: '!"%()+,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
+
+  - file: "modules/assets/Roboto-Regular.ttf"
+    id: ep28
+    size: 28
+    bpp: 8
+    glyphs: '!"%()+,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
+
+  - file: "modules/assets/Roboto-Regular.ttf"
+    id: ep24
+    size: 24
+    bpp: 8
+    glyphs: '!"%()+,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
+
+  - file: "modules/assets/Roboto-Regular.ttf"
+    id: ep16
+    size: 16
+    bpp: 8
+    glyphs: '!"%()+,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
+    
+  - file: "modules/assets/Roboto-Regular.ttf"
+    id: ep14
+    size: 14
+    bpp: 8
+    glyphs: '!"%()+,-_.:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'    
+

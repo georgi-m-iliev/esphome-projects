@@ -1,0 +1,173 @@
+esphome:
+  name: valve-controller
+  friendly_name: Smart-Irrigation-Valve-Controller
+
+esp32:
+  board: esp32dev
+
+logger:
+
+api:
+  encryption:
+    key: !secret valve_controller_api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret valve_controller_ota_password
+
+wifi:
+  domain: ".lan"
+  networks:
+    - ssid: !secret wifi_ssid
+      bssid: !secret wifi_outside_ap_bssid
+      password: !secret wifi_password
+    - ssid: !secret wifi_ssid
+      password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: !secret valve_controller_ap_ssid
+    password: !secret valve_controller_ap_password
+
+captive_portal:
+
+time:
+  - platform: sntp
+    timezone: "Europe/Sofia"
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+  - platform: uptime
+    type: timestamp
+    name: "Uptime"
+  - platform: adc
+    pin:
+      number: GPIO35
+    id: water_level_voltage
+    update_interval: 30s
+    accuracy_decimals: 5
+    unit_of_measurement: 'V'
+  - platform: ads1115
+    multiplexer: 'A0_GND'
+    gain: 6.144
+    name: "Water Pressure"
+    filters:
+      - calibrate_linear:
+        - 0.5 -> 0
+        - 2.5 -> 5.171068
+        - 4.5 -> 10.34214
+    unit_of_measurement: "bar"
+    device_class: "pressure"
+    accuracy_decimals: 1
+    update_interval: 5s
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO4
+      inverted: false
+      mode:
+        input: true
+        pulldown: true
+    id: manual_start
+    filters:
+      - delayed_on: 10ms
+    on_press:
+      then:
+        - switch.toggle: main_pump
+  - platform: template
+    name: flood
+    icon: "mdi:water-alert"
+    lambda: |-
+      return id(water_level_voltage).state > 0.850;
+
+switch:
+  - platform: gpio
+    pin: 
+      number: GPIO19
+    name: relay1
+    id: main_pump
+    restore_mode: RESTORE_DEFAULT_OFF
+    inverted: true
+  - platform: gpio
+    pin: 
+      number: GPIO18
+    name: relay2
+    restore_mode: RESTORE_DEFAULT_OFF
+    inverted: true
+  - platform: gpio
+    pin: 
+      number: GPIO32
+    name: relay3
+    restore_mode: RESTORE_DEFAULT_OFF
+    inverted: true
+  - platform: gpio
+    pin: 
+      number: GPIO33
+    name: relay4
+    restore_mode: RESTORE_DEFAULT_OFF
+    inverted: true
+  - platform: gpio
+    pin: 
+      number: GPIO25
+    name: relay5
+    restore_mode: RESTORE_DEFAULT_OFF
+    inverted: true
+  - platform: gpio
+    pin: 
+      number: GPIO26
+    name: relay6
+    restore_mode: RESTORE_DEFAULT_OFF
+    inverted: true
+  - platform: gpio
+    pin: 
+      number: GPIO27
+    name: relay7
+    restore_mode: RESTORE_DEFAULT_OFF
+    inverted: true
+  - platform: gpio
+    pin: 
+      number: GPIO14
+    name: relay8
+    restore_mode: RESTORE_DEFAULT_OFF
+    inverted: true
+
+output:
+  - platform: gpio
+    id: connection_status_led
+    pin:
+      number: GPIO23
+      mode:
+        output: true
+        pullup: true
+
+interval:
+  - interval: 1s
+    then:
+      if:
+        condition:
+          wifi.connected:
+        then:
+          - if:
+              condition:
+                api.connected:
+              then:
+                - output.turn_on: connection_status_led
+                - delay: 300ms
+                - output.turn_off: connection_status_led
+                - delay: 300ms
+              else:
+                - output.turn_on: connection_status_led
+        else:
+          - output.turn_off: connection_status_led
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  frequency: 400kHz
+  # scan: true
+
+ads1115:
+  - address: 0x48

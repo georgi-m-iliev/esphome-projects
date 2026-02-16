@@ -1,0 +1,86 @@
+esphome:
+  name: environment-sensor
+  friendly_name: Smart-Irrigation-Environment-Sensor
+  platform: ESP32
+  board: esp32-c3-devkitm-1
+
+logger:
+
+api:
+  encryption:
+    key: !secret env_sensor_api_encryption_key
+  on_client_connected:
+    then:
+      - lambda: |-
+          if (esp_sleep_get_wakeup_cause() == 7) {  // 7 corresponds to GPIO wakeup
+            ESP_LOGI("main", "We have booted from a deep sleep through the GPIO, publishing a trigger!");
+            id(rain_trigger).publish_state(true);  // Publish 'on' state
+            delay(2000);  // Wait for 0.5 seconds
+            id(rain_trigger).publish_state(false);  // Publish 'off' state
+          }
+
+ota:
+  - platform: esphome
+    password: !secret env_sensor_ota_password
+
+wifi:
+  domain: '.lan'
+  output_power: 8.5
+  networks:
+    - ssid: !secret wifi_ssid
+      bssid: !secret wifi_outside_ap_bssid
+      password: !secret wifi_password
+    - ssid: !secret wifi_ssid
+      password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: !secret env_sensor_ap_ssid
+    password: !secret env_sensor_ap_password
+
+captive_portal:
+    
+i2c:
+  sda: 6
+  scl: 7
+  scan: true
+  frequency: 400kHz
+
+deep_sleep:
+  id: deep_sleep_1
+  run_duration:
+    default: 60s
+    gpio_wakeup_reason: 2min
+  sleep_duration: 2h
+  wakeup_pin:
+      number: 5
+      inverted: true
+      allow_other_uses: true
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+  - platform: aht10
+    variant: AHT20
+    temperature:
+      name: 'Temperature'
+    humidity:
+      name: 'Humidity'
+    update_interval: 60s
+  - platform: bmp280_i2c
+    pressure:
+      name: 'Atmospheric pressure'
+    update_interval: 60s
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: 5
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+      allow_other_uses: true
+    id: 'rain_trigger'
+    name: 'Rain Trigger'
