@@ -230,3 +230,40 @@ void list_authorized_tags() {
     }
     ESP_LOGI("AUTH", "Total tags: %d", authorized_tags.size());
 }
+
+std::string get_codes_display() {
+    init_default_auth();
+    
+    if (authorized_codes.empty()) {
+        return "No codes stored";
+    }
+    
+    std::string result = "";
+    int count = 1;
+    for (const auto& pair : authorized_codes) {
+        if (count > 1) result += " | ";
+        result += std::to_string(count) + ". " + pair.second + " (..." + 
+                  pair.first.substr(pair.first.length() > 3 ? pair.first.length() - 3 : 0) + ")";
+        count++;
+    }
+    return result;
+}
+
+// Function to get formatted list of tags for display
+std::string get_tags_display() {
+    init_default_auth();
+    
+    if (authorized_tags.empty()) {
+        return "No tags stored";
+    }
+    
+    std::string result = "";
+    int count = 1;
+    for (const auto& pair : authorized_tags) {
+        if (count > 1) result += " | ";
+        result += std::to_string(count) + ". " + pair.second + " (..." + 
+                  pair.first.substr(pair.first.length() > 6 ? pair.first.length() - 6 : 0) + ")";
+        count++;
+    }
+    return result;
+}

@@ -3,6 +3,14 @@ esphome:
   friendly_name: Gate
   includes:
     - gate_auth.h
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          // Initialize display sensors with stored values
+          id(stored_codes_display).publish_state(get_codes_display());
+          id(stored_tags_display).publish_state(get_tags_display());
+          id(status_message).publish_state("System initialized");
 
 esp32:
   board: esp32dev
@@ -68,6 +76,26 @@ wifi:
 
 captive_portal:
 
+# Web server with version 3 for entity grouping and sorting
+web_server:
+  version: 3
+  auth:
+    username: admin
+    password: !secret web_password
+  sorting_groups:
+    - id: access_control_group
+      name: "Access Control"
+      sorting_weight: 10
+    - id: gate_control_group
+      name: "Gate Control"
+      sorting_weight: 20
+    - id: passcode_management_group
+      name: "Passcode Management"
+      sorting_weight: 30
+    - id: status_group
+      name: "Status & Diagnostics"
+      sorting_weight: 40
+
 # Global variables for storing gate settings
 globals:
   - id: gate_action_duration
@@ -100,20 +128,23 @@ output:
 
 # RTTTL for audio feedback
 rtttl:
+  id: gate_buzzer
   output: buzzer_output
 
 # Gate control relays
 switch:
   - platform: gpio
-    name: "Gate Open Relay"
+    name: "Gate Relay"
     id: gate_open_relay
-    pin: GPIO25
+    pin:
+      number: GPIO17
     internal: true
   
   - platform: gpio
-    name: "Gate Close Relay" 
+    name: "Unused Relay" 
     id: gate_close_relay
-    pin: GPIO26
+    pin:
+      number: GPIO16
     internal: true
 
   - platform: gpio
@@ -127,6 +158,9 @@ switch:
     icon: "mdi:key-chain-variant"
     restore_mode: RESTORE_DEFAULT_OFF
     entity_category: CONFIG
+    web_server:
+      sorting_group_id: access_control_group
+      sorting_weight: 10
     turn_on_action:
       - lambda: |
           ESP_LOGI("AUTH", "Enroll mode enabled");
@@ -136,33 +170,136 @@ switch:
           ESP_LOGI("AUTH", "Enroll mode disabled");
           id(enroll_mode_enabled) = false;
 
-# Buttons for opening or closing
 button:
-  - platform: template
-    name: "Open Gate"
-    id: gate_open_button
-    on_press:
-      - switch.turn_on: gate_open_relay
-      - delay: !lambda "return id(gate_action_duration);"
-      - switch.turn_off: gate_open_relay
-
-  - platform: template
-    name: "Close Gate"
-    id: gate_close_button
-    on_press:
-      - switch.turn_on: gate_close_relay
-      - delay: !lambda "return id(gate_action_duration);"
-      - switch.turn_off: gate_close_relay
-  
   - platform: template
     name: "Clear All Codes"
     id: clear_all_codes_button
     entity_category: CONFIG
+    web_server:
+      sorting_group_id: access_control_group
+      sorting_weight: 90
     on_press:
       - lambda: |
           ESP_LOGI("AUTH", "Clearing all authorized codes");
           clear_all_codes();
           clear_all_tags();
+          id(stored_codes_display).publish_state("No codes stored");
+          id(stored_tags_display).publish_state("No tags stored");
+          id(status_message).publish_state("All codes and tags cleared");
+
+  - platform: template
+    name: "Add Passcode"
+    id: add_passcode_button
+    icon: "mdi:key-plus"
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 30
+    on_press:
+      - lambda: |
+          std::string code = id(new_passcode_input).state;
+          std::string name = id(new_passcode_name_input).state;
+          
+          if (code.length() == 6  && name.length() > 0) {
+            add_authorized_code(code, name);
+            ESP_LOGI("AUTH", "Added passcode for: %s", name.c_str());
+            id(new_passcode_input).publish_state("");
+            id(new_passcode_name_input).publish_state("");
+            id(status_message).publish_state("Passcode added for " + name);
+            id(stored_codes_display).publish_state(get_codes_display());
+          } else {
+            ESP_LOGW("AUTH", "Can't add a new code: invalid passcode or name");
+            id(status_message).publish_state("Error: Code must be 6 digits, name required");
+          }
+
+  - platform: template
+    name: "Remove Passcode"
+    id: remove_passcode_button
+    icon: "mdi:key-minus"
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 40
+    on_press:
+      - lambda: |
+          std::string code = id(remove_passcode_input).state;
+          
+          if (code.length() == 6) {
+            remove_authorized_code(code);
+            ESP_LOGI("AUTH", "Removed passcode: %s", code.c_str());
+            id(remove_passcode_input).publish_state("");
+            id(status_message).publish_state("Passcode removed");
+            id(stored_codes_display).publish_state(get_codes_display());
+          } else {
+            ESP_LOGW("AUTH", "Can't remove passcode: invalid format");
+            id(status_message).publish_state("Error: Invalid passcode");
+          }
+
+  - platform: template
+    name: "Add RFID Tag"
+    id: add_tag_button
+    icon: "mdi:card-plus"
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 50
+    on_press:
+      - lambda: |
+          std::string tag = id(new_tag_input).state;
+          std::string name = id(new_tag_name_input).state;
+          
+          if (tag.length() > 0 && name.length() > 0) {
+            add_authorized_tag(tag, name);
+            ESP_LOGI("AUTH", "Added tag for: %s", name.c_str());
+            id(new_tag_input).publish_state("");
+            id(new_tag_name_input).publish_state("");
+            id(status_message).publish_state("Tag added for " + name);
+            id(stored_tags_display).publish_state(get_tags_display());
+          } else {
+            ESP_LOGW("AUTH", "Can't add a new tag: invalid tag or name");
+            id(status_message).publish_state("Error: Tag ID and name required");
+          }
+
+  - platform: template
+    name: "Remove RFID Tag"
+    id: remove_tag_button
+    icon: "mdi:card-minus"
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 60
+    on_press:
+      - lambda: |
+          std::string tag = id(remove_tag_input).state;
+          
+          if (tag.length() > 0) {
+            remove_authorized_tag(tag);
+            ESP_LOGI("AUTH", "Removed tag: %s", tag.c_str());
+            id(remove_tag_input).publish_state("");
+            id(status_message).publish_state("Tag removed");
+            id(stored_tags_display).publish_state(get_tags_display());
+          } else {
+            ESP_LOGW("AUTH", "Can't remove tag: invalid format");
+            id(status_message).publish_state("Error: Invalid tag ID");
+          }
+
+  - platform: template
+    name: "Refresh Lists"
+    id: refresh_lists_button
+    icon: "mdi:refresh"
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 70
+    on_press:
+      - lambda: |
+          // Update stored codes display
+          id(stored_codes_display).publish_state(get_codes_display());
+          
+          // Update stored tags display
+          id(stored_tags_display).publish_state(get_tags_display());
+          
+          id(status_message).publish_state("Lists refreshed");
 
 # Gate sensor and status indicators
 binary_sensor:
@@ -173,16 +310,20 @@ binary_sensor:
       number: GPIO27
       mode: INPUT_PULLUP
     device_class: door
+    web_server:
+      sorting_group_id: status_group
+      sorting_weight: 10
     filters:
       - delayed_on: 100ms
       - delayed_off: 100ms
     on_state:
       - lambda: |
           if (x) {
-            id(gate).publish_state("OPEN");
+            id(gate).position = 1.0;
           } else {
-            id(gate).publish_state("CLOSED");
+            id(gate).position = 0.0;
           }
+          id(gate).publish_state();
 
 cover:
   - platform: template
@@ -190,14 +331,90 @@ cover:
     id: gate
     device_class: door
     icon: "mdi:gate"
+    web_server:
+      sorting_group_id: gate_control_group
+      sorting_weight: 10
     open_action:
-      - button.press: gate_open_button
-    close_action:
-      - button.press: gate_close_button
-    stop_action:
+      - switch.turn_on: gate_open_relay
+      - delay: 750ms
       - switch.turn_off: gate_open_relay
-      - switch.turn_off: gate_close_relay
+    close_action:
+      - switch.turn_on: gate_open_relay
+      - delay: 750ms
+      - switch.turn_off: gate_open_relay
+    stop_action:
+      - switch.turn_on: gate_open_relay
+      - delay: 750ms
+      - switch.turn_off: gate_open_relay
     
+
+# Text inputs for passcode management
+text:
+  - platform: template
+    name: "New Passcode"
+    id: new_passcode_input
+    icon: "mdi:numeric"
+    optimistic: true
+    mode: password
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 10
+
+  - platform: template
+    name: "New Passcode Name"
+    id: new_passcode_name_input
+    icon: "mdi:account"
+    optimistic: true
+    mode: text
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 20
+
+  - platform: template
+    name: "Remove Passcode (Code)"
+    id: remove_passcode_input
+    icon: "mdi:numeric"
+    optimistic: true
+    mode: password
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 35
+      
+  - platform: template
+    name: "New RFID Tag ID"
+    id: new_tag_input
+    icon: "mdi:card-account-details"
+    optimistic: true
+    mode: text
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 45
+
+  - platform: template
+    name: "New RFID Tag Name"
+    id: new_tag_name_input
+    icon: "mdi:account"
+    optimistic: true
+    mode: text
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 46
+
+  - platform: template
+    name: "Remove RFID Tag (ID)"
+    id: remove_tag_input
+    icon: "mdi:card-account-details"
+    optimistic: true
+    mode: text
+    entity_category: CONFIG
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 55
 
 # Text sensors for status display
 text_sensor:   
@@ -205,29 +422,44 @@ text_sensor:
     name: "Last Authenticated User"
     id: last_user
     icon: "mdi:account-check"
+    web_server:
+      sorting_group_id: status_group
+      sorting_weight: 20
     
   - platform: template
     name: "Last Code Entered"
     id: last_code_entered
     icon: "mdi:numeric"
+    web_server:
+      sorting_group_id: status_group
+      sorting_weight: 30
 
-# Number input for gate open duration
-number:
   - platform: template
-    name: "Gate Action Duration"
-    id: gate_action_duration_input
-    icon: "mdi:timer"
-    min_value: 1000
-    max_value: 10000
-    step: 500
-    unit_of_measurement: "ms"
-    mode: box
-    set_action:
-      - globals.set:
-          id: gate_action_duration
-          value: !lambda "return (int)x;"
-      - lambda: ESP_LOGI("CONFIG", "Gate open duration set to %d ms", (int)x);
-    entity_category: CONFIG
+    name: "Stored Passcodes"
+    id: stored_codes_display
+    icon: "mdi:key-chain"
+    entity_category: DIAGNOSTIC
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 80
+
+  - platform: template
+    name: "Stored RFID Tags"
+    id: stored_tags_display
+    icon: "mdi:card-multiple"
+    entity_category: DIAGNOSTIC
+    web_server:
+      sorting_group_id: passcode_management_group
+      sorting_weight: 85
+
+  - platform: template
+    name: "Status Message"
+    id: status_message
+    icon: "mdi:message-alert"
+    entity_category: DIAGNOSTIC
+    web_server:
+      sorting_group_id: status_group
+      sorting_weight: 40
 
 # Key collector for PIN codes
 key_collector:
@@ -253,11 +485,11 @@ key_collector:
             add_authorized_code(pin_code, "Unknown");
             id(enroll_mode_enabled) = false;
             ESP_LOGI("AUTH", "Code enrolled: %s, disabled enroll mode", pin_code.c_str());
+            id(status_message).publish_state("Code enrolled successfully");
+            id(stored_codes_display).publish_state(get_codes_display());
 
             // Success beep
-            id(buzzer_output).set_frequency(1000);
-            id(buzzer_output).set_level(0.5);
-            id(buzzer_output).turn_on();
+            id(gate_buzzer).play("succ:d=16,o=6,b=160: g,8p,g");
           } else if (check_authorized_code(pin_code)) {
             std::string user_name = get_code_user_name(pin_code);
             ESP_LOGI("AUTH", "Valid PIN code entered by: %s", user_name.c_str());
@@ -265,31 +497,24 @@ key_collector:
             id(last_user).publish_state(user_name);
             
             // Control gate based on current state
-            if (id(gate_sensor).state) {  // Gate is closed
-              id(gate_open_button).press();
-              ESP_LOGI("GATE", "Opening gate for authorized user: %s", user_name.c_str());
-            } else {  // Gate is open
-              id(gate_close_button).press();
-              ESP_LOGI("GATE", "Closing gate for authorized user: %s", user_name.c_str());
+            if(id(gate).position) {
+              auto call = id(gate).make_call();
+              call.set_command_open();
+              call.perform();
+            } else {
+              auto call = id(gate).make_call();
+              call.set_command_close();
+              call.perform();
             }
-            
+                        
             // Success beep
-            id(buzzer_output).set_frequency(1000);
-            id(buzzer_output).set_level(0.5);
-            id(buzzer_output).turn_on();
+            id(gate_buzzer).play("succ:d=16,o=6,b=160: g,8p,g");
           } else {
             ESP_LOGW("AUTH", "Invalid PIN code entered: %s", pin_code.c_str());
             id(last_user).publish_state("Invalid Code");
             
             // Error beep pattern
-            for (int i = 0; i < 3; i++) {
-              id(buzzer_output).set_frequency(500);
-              id(buzzer_output).set_level(0.3);
-              id(buzzer_output).turn_on();
-              delay(200);
-              id(buzzer_output).turn_off();
-              delay(100);
-            }
+            id(gate_buzzer).play("err:d=16,o=6,b=180: c,8p,c,8p,c");
           }
     on_timeout:
       - lambda: |
@@ -314,11 +539,11 @@ wiegand:
             add_authorized_tag(tag_id, "Unknown");
             id(enroll_mode_enabled) = false;
             ESP_LOGI("AUTH", "Tag enrolled: %s, disabled enroll mode", tag_id.c_str());
+            id(status_message).publish_state("Tag enrolled successfully");
+            id(stored_tags_display).publish_state(get_tags_display());
 
             // Success beep
-            id(buzzer_output).set_frequency(1000);
-            id(buzzer_output).set_level(0.5);
-            id(buzzer_output).turn_on();
+            id(gate_buzzer).play("succ:d=16,o=6,b=160: g,8p,g");
           } else if (check_authorized_tag(tag_id)) {
             std::string user_name = get_tag_user_name(tag_id);
             ESP_LOGI("AUTH", "Valid tag scanned by: %s", user_name.c_str());
@@ -326,31 +551,24 @@ wiegand:
             id(last_user).publish_state(user_name);
             
             // Control gate based on current state
-            if (id(gate_sensor).state) {  // Gate is closed
-              id(gate_open_button).press();
-              ESP_LOGI("GATE", "Opening gate for authorized user: %s", user_name.c_str());
-            } else {  // Gate is open
-              id(gate_close_button).press();
-              ESP_LOGI("GATE", "Closing gate for authorized user: %s", user_name.c_str());
+            if(id(gate).position) {
+              auto call = id(gate).make_call();
+              call.set_command_open();
+              call.perform();
+            } else {
+              auto call = id(gate).make_call();
+              call.set_command_close();
+              call.perform();
             }
             
             // Success beep
-            id(buzzer_output).set_frequency(1000);
-            id(buzzer_output).set_level(0.5);
-            id(buzzer_output).turn_on();
+            id(gate_buzzer).play("succ:d=16,o=6,b=160: g,8p,g");
           } else {
             ESP_LOGW("AUTH", "Invalid tag scanned: %s", tag_id.c_str());
             id(last_user).publish_state("Invalid Tag");
             
             // Error beep pattern
-            for (int i = 0; i < 3; i++) {
-              id(buzzer_output).set_frequency(500);
-              id(buzzer_output).set_level(0.3);
-              id(buzzer_output).turn_on();
-              delay(200);
-              id(buzzer_output).turn_off();
-              delay(100);
-            }
+            id(gate_buzzer).play("err:d=16,o=6,b=180: c,8p,c,8p,c");
           }
           
           
