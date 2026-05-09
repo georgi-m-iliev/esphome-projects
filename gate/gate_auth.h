@@ -242,8 +242,7 @@ std::string get_codes_display() {
     int count = 1;
     for (const auto& pair : authorized_codes) {
         if (count > 1) result += " | ";
-        result += std::to_string(count) + ". " + pair.second + " (..." + 
-                  pair.first.substr(pair.first.length() > 3 ? pair.first.length() - 3 : 0) + ")";
+        result += std::to_string(count) + ". " + pair.second;
         count++;
     }
     return result;
@@ -261,8 +260,13 @@ std::string get_tags_display() {
     int count = 1;
     for (const auto& pair : authorized_tags) {
         if (count > 1) result += " | ";
-        result += std::to_string(count) + ". " + pair.second + " (..." + 
-                  pair.first.substr(pair.first.length() > 6 ? pair.first.length() - 6 : 0) + ")";
+        result += std::to_string(count) + ". " + pair.second;
+        if (pair.first.length() > 6) {
+            result += " (..." + pair.first.substr(pair.first.length() - 6) + ")";
+        }
+        else {
+            result += " (" + pair.first + ")";
+        }
         count++;
     }
     return result;

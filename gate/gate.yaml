@@ -83,11 +83,11 @@ web_server:
     username: admin
     password: !secret web_password
   sorting_groups:
-    - id: access_control_group
-      name: "Access Control"
-      sorting_weight: 10
     - id: gate_control_group
       name: "Gate Control"
+      sorting_weight: 10
+    - id: access_control_group
+      name: "Access Control"
       sorting_weight: 20
     - id: passcode_management_group
       name: "Passcode Management"
