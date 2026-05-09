@@ -1,0 +1,38 @@
+---
+# Cover state - tracks open/closed and updates button icon and color
+# vars:
+#   uid:        unique identifier - must match the button ID
+#   entity_id:  Home Assistant cover entity_id
+#   icon_open:  icon glyph to show when cover is open / opening
+#   icon_closed: icon glyph to show when cover is closed / closing
+
+text_sensor:
+  - id: widget_cover_sensor_${uid}
+    platform: homeassistant
+    entity_id: ${entity_id}
+    on_value:
+      - if:
+          condition:
+            - lambda: 'return x == "open" || x == "opening";'
+          then:
+            - lvgl.widget.update:
+                id: button_${uid}
+                bg_color: $button_on_color
+            - lvgl.label.update:
+                id: icon_${uid}
+                text_color: $icon_on_color
+                text: "${icon_open}"
+            - lvgl.label.update:
+                id: label_${uid}
+                text_color: $label_on_color
+          else:
+            - lvgl.widget.update:
+                id: button_${uid}
+                bg_color: $button_off_color
+            - lvgl.label.update:
+                id: icon_${uid}
+                text_color: $icon_off_color
+                text: "${icon_closed}"
+            - lvgl.label.update:
+                id: label_${uid}
+                text_color: $label_off_color

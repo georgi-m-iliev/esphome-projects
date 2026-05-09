@@ -21,5 +21,3 @@ ota:
         - light.turn_off: display_backlight
         - lvgl.pause:
     password: !secret ota_password
-  - platform: web_server
-    password: !secret ota_password

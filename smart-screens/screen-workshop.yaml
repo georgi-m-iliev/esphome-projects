@@ -53,7 +53,7 @@ substitutions:
   screen_width: '480px'
 
 esphome:
-  name: "Display Workshop"
+  name: "display-workshop"
   friendly_name: "DisplayWorkshop"
   comment: "Guition ESP32-4848S040 480px * 480px Smart Screen"
 
@@ -133,10 +133,12 @@ packages:
       entity_id: "switch.valve_controller_relay5"
   # Gate button state updates
   gate_button_state: !include
-    file: modules/sensors/switch_or_light_button_state.yaml
+    file: modules/sensors/cover_button_state.yaml
     vars:
       uid: gate_button
-      entity_id: "switch.gate_control"
+      entity_id: "cover.gate"
+      icon_open: $gate_opened
+      icon_closed: $gate
   floodlight_1_state: !include
     file: modules/sensors/switch_or_light_button_state.yaml
     vars:
@@ -251,13 +253,14 @@ lvgl:
               entity_id: "switch.valve_controller_relay5"
 
         - button: !include
-            file: modules/buttons/switch_button.yaml
+            file: modules/buttons/cover_button.yaml
             vars:
               uid: gate_button
               height: $button_height_double
               text: Порта
-              icon: $gate
-              entity_id: "switch.gate_control"
+              icon_closed: $gate
+              icon_open: $gate_opened
+              entity_id: "cover.gate"
 
 #-------------------------------------------
 # Graphics and Fonts
