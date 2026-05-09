@@ -37,6 +37,21 @@ time:
     timezone: "Europe/Sofia"
 
 esp32_ble_tracker:
+  id: ble_tracker
+  scan_parameters:
+    interval: 320ms
+    window: 320ms
+    active: false
+    continuous: true
+  software_coexistence: true
+
+interval:
+  - interval: 30min
+    then:
+      - esp32_ble_tracker.stop_scan:
+      - delay: 2s
+      - esp32_ble_tracker.start_scan:
+          continuous: true
 
 output:
   - platform: gpio
