@@ -1,0 +1,134 @@
+esphome:
+  name: greenhouse
+  friendly_name: Greenhouse
+
+esp32:
+  variant: esp32
+  framework:
+    type: esp-idf
+    advanced:
+      minimum_chip_revision: 3.1
+      sram1_as_iram: true
+
+logger:
+  level: INFO
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  fast_connect: true
+  reboot_timeout: 10min
+  power_save_mode: none
+  output_power: 17dB
+
+  ap:
+    ssid: !secret ap_ssid
+    password: !secret ap_password
+
+captive_portal:
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "Europe/Sofia"
+    servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: diagnostic
+    icon: mdi:wifi
+
+  - platform: uptime
+    type: timestamp
+    id: uptime_timestamp
+    name: "Uptime"
+    entity_category: diagnostic
+    icon: mdi:clock-outline
+
+  - platform: internal_temperature
+    id: cpu_temperature
+    name: "CPU Temperature"
+    entity_category: diagnostic
+    icon: mdi:thermometer
+    unit_of_measurement: "°C"
+
+binary_sensor:
+  - platform: status
+    name: "System Status"
+    id: system_status
+    entity_category: diagnostic
+    icon: mdi:check-network
+
+output:
+  - platform: gpio
+    pin: GPIO23
+    id: connection_status_led
+    inverted: false
+
+switch:
+  - platform: gpio
+    pin: GPIO17
+    id: bug_lamp
+    name: "Insect Lamp"
+    icon: mdi:lightbulb
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: gpio
+    pin: GPIO16
+    id: relay_2
+    name: "Relay 2"
+    icon: mdi:power-socket
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: template
+    id: bug_lamp_schedule_enabled
+    name: "Greenhouse Bug Lamp Schedule"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: CONFIG
+
+interval:
+  - interval: 1s
+    then:
+      - if:
+          condition: wifi.connected
+          then:
+            - if:
+                condition: api.connected
+                then:
+                  - output.turn_on: connection_status_led
+                  - delay: 1000ms
+                  - output.turn_off: connection_status_led
+                  - delay: 1000ms
+                else:
+                  - output.turn_on: connection_status_led
+          else:
+            - output.turn_off: connection_status_led
+
+sun:
+  latitude: 42.5667°
+  longitude: 25.61341°
+
+  on_sunset:
+    - then:
+        - delay: 45min
+        - if:
+            condition:
+              switch.is_on: bug_lamp_schedule_enabled
+            then:
+              - switch.turn_on: bug_lamp
+              - delay: 3h
+              - switch.turn_off: bug_lamp
