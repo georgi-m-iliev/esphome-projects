@@ -4,7 +4,11 @@ esphome:
 
 esp32:
   board: esp32dev
-
+  framework:
+    type: esp-idf
+    advanced:
+      minimum_chip_revision: 3.0
+      sram1_as_iram: true
 logger:
 
 api:
@@ -33,15 +37,28 @@ captive_portal:
 
 time:
   - platform: sntp
+    id: sntp_time
     timezone: "Europe/Sofia"
+    servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
 
 sensor:
   - platform: wifi_signal
     name: "WiFi Signal"
     update_interval: 60s
+
   - platform: uptime
     type: timestamp
     name: "Uptime"
+
+  - platform: internal_temperature
+    id: cpu_temperature
+    name: "CPU Temperature"
+    entity_category: diagnostic
+    icon: mdi:thermometer
+    unit_of_measurement: "°C"
+
   - platform: adc
     pin:
       number: GPIO35
@@ -49,6 +66,7 @@ sensor:
     update_interval: 30s
     accuracy_decimals: 5
     unit_of_measurement: 'V'
+
   - platform: ads1115
     multiplexer: 'A0_GND'
     gain: 6.144
@@ -64,6 +82,12 @@ sensor:
     update_interval: 5s
 
 binary_sensor:
+  - platform: status
+    name: "System Status"
+    id: system_status
+    entity_category: diagnostic
+    icon: mdi:check-network
+
   - platform: gpio
     pin:
       number: GPIO4
@@ -77,6 +101,7 @@ binary_sensor:
     on_press:
       then:
         - switch.toggle: main_pump
+
   - platform: template
     name: flood
     icon: "mdi:water-alert"
@@ -91,42 +116,49 @@ switch:
     id: main_pump
     restore_mode: RESTORE_DEFAULT_OFF
     inverted: true
+
   - platform: gpio
     pin: 
       number: GPIO18
     name: relay2
     restore_mode: RESTORE_DEFAULT_OFF
     inverted: true
+
   - platform: gpio
     pin: 
       number: GPIO32
     name: relay3
     restore_mode: RESTORE_DEFAULT_OFF
     inverted: true
+
   - platform: gpio
     pin: 
       number: GPIO33
     name: relay4
     restore_mode: RESTORE_DEFAULT_OFF
     inverted: true
+
   - platform: gpio
     pin: 
       number: GPIO25
     name: relay5
     restore_mode: RESTORE_DEFAULT_OFF
     inverted: true
+
   - platform: gpio
     pin: 
       number: GPIO26
     name: relay6
     restore_mode: RESTORE_DEFAULT_OFF
     inverted: true
+
   - platform: gpio
     pin: 
       number: GPIO27
     name: relay7
     restore_mode: RESTORE_DEFAULT_OFF
     inverted: true
+
   - platform: gpio
     pin: 
       number: GPIO14
