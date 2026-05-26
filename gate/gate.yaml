@@ -16,6 +16,9 @@ esp32:
   board: esp32dev
   framework:
     type: esp-idf
+    advanced:
+      minimum_chip_revision: 3.1
+      sram1_as_iram: true
 
 # Enable logging
 logger:
@@ -75,6 +78,14 @@ wifi:
     password: !secret ap_password
 
 captive_portal:
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "Europe/Sofia"
+    servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
 
 # Web server with version 3 for entity grouping and sorting
 web_server:
@@ -301,6 +312,28 @@ button:
           
           id(status_message).publish_state("Lists refreshed");
 
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: diagnostic
+    icon: mdi:wifi
+
+  - platform: uptime
+    type: timestamp
+    id: uptime_timestamp
+    name: "Uptime"
+    entity_category: diagnostic
+    icon: mdi:clock-outline
+
+  - platform: internal_temperature
+    id: cpu_temperature
+    name: "CPU Temperature"
+    entity_category: diagnostic
+    icon: mdi:thermometer
+    unit_of_measurement: "°C"
+
 # Gate sensor and status indicators
 binary_sensor:
   - platform: gpio
@@ -324,6 +357,12 @@ binary_sensor:
             id(gate).position = 0.0;
           }
           id(gate).publish_state();
+
+  - platform: status
+    name: "System Status"
+    id: system_status
+    entity_category: diagnostic
+    icon: mdi:check-network
 
 cover:
   - platform: template
