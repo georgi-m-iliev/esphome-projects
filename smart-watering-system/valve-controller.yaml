@@ -9,6 +9,7 @@ esp32:
     advanced:
       minimum_chip_revision: 3.0
       sram1_as_iram: true
+
 logger:
 
 api:
@@ -203,3 +204,8 @@ i2c:
 
 ads1115:
   - address: 0x48
+
+esp32_ble_tracker:
+
+bluetooth_proxy:
+  active: true

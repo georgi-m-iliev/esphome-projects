@@ -69,8 +69,13 @@ ota:
     password: !secret ota_password
 
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
+  networks:
+    - ssid: !secret wifi_ssid
+      password: !secret wifi_password
+    - ssid: !secret backup_wifi_ssid
+      password: !secret wifi_password
+  enable_btm: true
+  enable_rrm: true
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
@@ -609,8 +614,12 @@ wiegand:
             // Error beep pattern
             id(gate_buzzer).play("err:d=16,o=6,b=180: c,8p,c,8p,c");
           }
-          
-          
+
     on_raw:
       - lambda: |
           ESP_LOGI("RAW", "Raw data: %d bits, value %llx", bits, value);
+
+esp32_ble_tracker:
+
+bluetooth_proxy:
+  active: true

@@ -1,0 +1,56 @@
+esphome:
+  name: house-proxy
+  friendly_name: House-Proxy
+
+esp32:
+  variant: esp32
+  framework:
+    type: esp-idf
+    advanced:
+      minimum_chip_revision: 3.1
+      sram1_as_iram: true
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  enable_btm: true
+  enable_rrm: true
+
+logger:
+
+api:
+  encryption:
+    key: !secret house_proxy_api_encryption_key
+
+ota:
+  platform: esphome
+  password: !secret house_proxy_ota_password
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "Europe/Sofia"
+    servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
+
+esp32_ble_tracker:
+
+bluetooth_proxy:
+  active: true
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+
+  - platform: uptime
+    type: timestamp
+    name: "Uptime"
+
+  - platform: internal_temperature
+    id: cpu_temperature
+    name: "CPU Temperature"
+    entity_category: diagnostic
+    icon: mdi:thermometer
+    unit_of_measurement: "°C"
